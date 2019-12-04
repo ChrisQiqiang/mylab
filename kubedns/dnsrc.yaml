@@ -1,0 +1,53 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kube-dns
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: kube-dns
+        tier: platform
+        subsystem: unconfirmed
+        k8s-app: kube-dns
+        version: v9
+        partition: "no"
+        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - name: kube2sky
+        image: gcr.io/google_containers/kube2sky:1.11
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50Mi
+        args:
+        - -domain=cluster.local.
+        # master地址
+        - --kube_master_url=http://master:8080
+        # etcd地址
+        - -etcd-server=http://etcd:2379
+      - name: skydns
+        image: gcr.io/google_containers/skydns:2015-10-13-8c72f8c 
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50Mi
+        args:
+        # command = "/skydns"
+        # etcd地址
+        - -machines=http://master:2379
+        - -addr=0.0.0.0:53
+        - -ns-rotate=false
+        #同etcd中配置的/skydns/config中的domain名，最后有‘点’
+        - -domain=cluster.local.
+        ports:
+        - containerPort: 53
+          name: dns
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+      dnsPolicy: Default  # Don't use cluster DNS.
